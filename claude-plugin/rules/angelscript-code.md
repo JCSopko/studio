@@ -19,7 +19,7 @@ Reference: `@knowledge/angelscript.md`
 - **Null-check after `Cast<T>()`** — Cast returns nullptr on failure; never assume success.
 - **`ExecuteIfBound` on single-cast delegates that may be unbound** — direct `Execute()` crashes if unbound.
 - **Explicit category on UPROPERTY/UFUNCTION** — `Category = "ProjectName|Subsystem"` for editor organization. Single-word categories acceptable for project-internal-only fields.
-- **Subsystem accessor pattern**: every singleton-style subsystem provides `static T Get(UObject WorldContextObject)` for callers to look it up via game-instance.
+- **Subsystem accessor pattern**: callers use the AS-binding-layer's auto-generated `T::Get(WorldContextObject)`. **Do NOT declare `static T Get(...)` on the subsystem class** — Hazelight AS rejects user-declared static member functions. The binding layer provides the accessor for free.
 
 ## Prohibited
 
@@ -33,7 +33,13 @@ Reference: `@knowledge/angelscript.md`
 
 ## Encouraged patterns
 
-- **Snapshot iteration on multi-cast delegate dispatch** — copy the subscriber list before iterating so subscribers may unsubscribe during dispatch without invalidating the loop. See `EventBus.as` reference (Cozy `SquirrelTamagotchi/Script/Subsystems/EventBus.as`) for the canonical pattern.
+- **Use `event` over hand-rolled subscriber lists** — Hazelight AS provides multicast `event` declarations that handle dispatch + binding cleanly. Prefer `event FMyDelegate OnFoo;` + `OnFoo.Broadcast(...)` over a manual `TMap<FName, TArray<FCozyEventDelegate>>` subscriber registry.
+- **Snapshot iteration on multi-cast delegate dispatch** — when implementing custom dispatch (e.g., for typed-event-bus where `event` doesn't fit), copy the subscriber list before iterating so subscribers may unsubscribe during dispatch without invalidating the loop.
+- **`Math::` not `FMath::`** — Hazelight renames `FMath::*` to `Math::*` in script. `Math::Clamp`, `Math::Min`, `Math::Lerp`, etc.
+- **`0.0f` literals in float32 contexts** — `float` defaults to 64-bit double in AS. Mixing `0.0` (float64) literals with `float32` member fields causes overload-resolution failures in `Math::Clamp` and friends.
+- **Global `SpawnActor(Class, Loc, Rot)` for spawning** — class as value, NOT `Class::StaticClass()`. Returns the spawned actor reference directly.
+- **`default` keyword for property initialization** — AS forbids constructors. Inline initializers via `default Field = value;` set defaults safely under hot-reload.
+- **`BlueprintOverride` body without `Super::Method()`** — AS does NOT provide a `Super` namespace. The body is the override; parent invocation is implicit through BP's call graph.
 - **Recursion-cap on event-bus-style dispatch** — explicit depth counter with a hard limit prevents unbounded re-entry.
 - **`Replicated` UPROPERTY paired with `OnRep_*` callback** — when a property crosses the wire, the receiving side reacts in the OnRep handler.
 - **`@knowledge/angelscript.md` referenced when in doubt** — the knowledge file holds idiomatic patterns the rule does not exhaustively enforce.
@@ -41,7 +47,7 @@ Reference: `@knowledge/angelscript.md`
 ## Blueprint interop
 
 - AS classes intended for BP subclassing declare `UCLASS(Blueprintable)`.
-- AS classes intended only as data types for BP variables declare `UCLASS(BlueprintType)`.
+- AS classes used as data types for BP variables: leave `UCLASS()` bare. **`BlueprintType` is NOT a valid Hazelight AS UCLASS specifier** — UObject derivatives are implicitly Blueprint-usable as types. `BlueprintType` is a UE C++ specifier that AS does not accept.
 - AS exposes virtual methods to BP via `UFUNCTION(BlueprintImplementableEvent)` (declared in AS, implemented in BP).
 
 ## Hot reload caveats
