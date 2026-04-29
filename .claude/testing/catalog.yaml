@@ -1,0 +1,194 @@
+# Studio — Skill & Agent Testing Catalog
+#
+# Master registry for skills and agents. Tracks coverage of behavioral specs
+# (skills/<category>/<name>.md), category rubric checks, and static linter
+# pass results. Used by /skill-test (static / spec / category / audit) and
+# /skill-improve.
+#
+# Replaces the CCGS Skill Testing Framework that shipped at "CCGS Skill Testing
+# Framework/catalog.yaml" — rebuilt minimal against Studio's discipline-
+# collapsed roster. Specs are authored on demand; the catalog tracks coverage
+# state.
+#
+# To populate: copy templates/skill-test-spec.md or templates/agent-test-spec.md,
+# author the spec at the path listed below, then run /skill-test spec <name>
+# to validate. Coverage fields (last_static, last_spec, last_category) update
+# automatically.
+
+version: 1
+last_updated: 2026-04-28
+
+# ---------------------------------------------------------------------------
+# Agents — Studio core 6 disciplines + 5 retained UE specialists
+# ---------------------------------------------------------------------------
+
+agents:
+  programming:
+    category: discipline
+    spec: .claude/testing/agents/discipline/programming.md
+    last_spec: never
+    last_spec_result: ""
+    priority: critical
+
+  design:
+    category: discipline
+    spec: .claude/testing/agents/discipline/design.md
+    last_spec: never
+    last_spec_result: ""
+    priority: critical
+
+  art:
+    category: discipline
+    spec: .claude/testing/agents/discipline/art.md
+    last_spec: never
+    last_spec_result: ""
+    priority: high
+
+  audio:
+    category: discipline
+    spec: .claude/testing/agents/discipline/audio.md
+    last_spec: never
+    last_spec_result: ""
+    priority: high
+
+  qa:
+    category: discipline
+    spec: .claude/testing/agents/discipline/qa.md
+    last_spec: never
+    last_spec_result: ""
+    priority: critical
+
+  production:
+    category: discipline
+    spec: .claude/testing/agents/discipline/production.md
+    last_spec: never
+    last_spec_result: ""
+    priority: critical
+
+  unreal-specialist:
+    category: ue-specialist
+    spec: .claude/testing/agents/ue-specialist/unreal-specialist.md
+    last_spec: never
+    last_spec_result: ""
+    priority: high
+
+  ue-gas-specialist:
+    category: ue-specialist
+    spec: .claude/testing/agents/ue-specialist/ue-gas-specialist.md
+    last_spec: never
+    last_spec_result: ""
+    priority: medium
+
+  ue-blueprint-specialist:
+    category: ue-specialist
+    spec: .claude/testing/agents/ue-specialist/ue-blueprint-specialist.md
+    last_spec: never
+    last_spec_result: ""
+    priority: medium
+
+  ue-replication-specialist:
+    category: ue-specialist
+    spec: .claude/testing/agents/ue-specialist/ue-replication-specialist.md
+    last_spec: never
+    last_spec_result: ""
+    priority: medium
+
+  ue-umg-specialist:
+    category: ue-specialist
+    spec: .claude/testing/agents/ue-specialist/ue-umg-specialist.md
+    last_spec: never
+    last_spec_result: ""
+    priority: medium
+
+# ---------------------------------------------------------------------------
+# Skills — categorized for /skill-test category rubric checks
+# ---------------------------------------------------------------------------
+
+skills:
+  # Onboarding / navigation
+  start: { category: utility, priority: critical, spec: "" }
+  help: { category: utility, priority: high, spec: "" }
+  project-stage-detect: { category: utility, priority: medium, spec: "" }
+  setup-engine: { category: utility, priority: high, spec: "" }
+  adopt: { category: utility, priority: medium, spec: "" }
+  onboard: { category: utility, priority: medium, spec: "" }
+
+  # Specialist creation
+  branch-specialist: { category: authoring, priority: high, spec: "" }
+
+  # Game design
+  brainstorm: { category: authoring, priority: critical, spec: "" }
+  map-systems: { category: pipeline, priority: critical, spec: "" }
+  design-system: { category: authoring, priority: critical, spec: "" }
+  quick-design: { category: authoring, priority: high, spec: "" }
+  review-all-gdds: { category: review, priority: critical, spec: "" }
+  propagate-design-change: { category: pipeline, priority: high, spec: "" }
+  consistency-check: { category: analysis, priority: high, spec: "" }
+
+  # Art & assets
+  art-bible: { category: authoring, priority: critical, spec: "" }
+  asset-spec: { category: authoring, priority: high, spec: "" }
+  asset-audit: { category: analysis, priority: medium, spec: "" }
+
+  # Architecture
+  create-architecture: { category: authoring, priority: critical, spec: "" }
+  architecture-decision: { category: authoring, priority: critical, spec: "" }
+  architecture-review: { category: review, priority: critical, spec: "" }
+  create-control-manifest: { category: authoring, priority: high, spec: "" }
+
+  # Stories & sprints
+  create-epics: { category: pipeline, priority: critical, spec: "" }
+  create-stories: { category: pipeline, priority: critical, spec: "" }
+  dev-story: { category: pipeline, priority: critical, spec: "" }
+  sprint-plan: { category: sprint, priority: high, spec: "" }
+  sprint-status: { category: sprint, priority: medium, spec: "" }
+  story-readiness: { category: readiness, priority: critical, spec: "" }
+  story-done: { category: readiness, priority: critical, spec: "" }
+  estimate: { category: pipeline, priority: medium, spec: "" }
+
+  # Reviews & analysis
+  design-review: { category: review, priority: critical, spec: "" }
+  code-review: { category: review, priority: critical, spec: "" }
+  balance-check: { category: analysis, priority: high, spec: "" }
+  content-audit: { category: analysis, priority: medium, spec: "" }
+  scope-check: { category: analysis, priority: high, spec: "" }
+  perf-profile: { category: analysis, priority: high, spec: "" }
+  gate-check: { category: gate, priority: critical, spec: "" }
+
+  # QA & testing
+  qa-plan: { category: pipeline, priority: high, spec: "" }
+  smoke-check: { category: utility, priority: critical, spec: "" }
+  soak-test: { category: utility, priority: medium, spec: "" }
+  regression-suite: { category: utility, priority: high, spec: "" }
+  skill-test: { category: utility, priority: critical, spec: "" }
+  skill-improve: { category: utility, priority: high, spec: "" }
+
+  # Production
+  milestone-review: { category: sprint, priority: high, spec: "" }
+  retrospective: { category: sprint, priority: medium, spec: "" }
+  bug-report: { category: utility, priority: high, spec: "" }
+  bug-triage: { category: utility, priority: high, spec: "" }
+  reverse-document: { category: pipeline, priority: medium, spec: "" }
+  playtest-report: { category: utility, priority: medium, spec: "" }
+
+  # Release
+  release-checklist: { category: pipeline, priority: critical, spec: "" }
+  launch-checklist: { category: pipeline, priority: critical, spec: "" }
+  changelog: { category: utility, priority: high, spec: "" }
+  patch-notes: { category: utility, priority: medium, spec: "" }
+  hotfix: { category: pipeline, priority: high, spec: "" }
+
+  # Creative
+  prototype: { category: pipeline, priority: high, spec: "" }
+  localize: { category: pipeline, priority: medium, spec: "" }
+
+  # Team orchestration
+  team-combat: { category: team, priority: high, spec: "" }
+  team-narrative: { category: team, priority: medium, spec: "" }
+  team-ui: { category: team, priority: medium, spec: "" }
+  team-release: { category: team, priority: medium, spec: "" }
+  team-polish: { category: team, priority: medium, spec: "" }
+  team-audio: { category: team, priority: medium, spec: "" }
+  team-level: { category: team, priority: medium, spec: "" }
+  team-live-ops: { category: team, priority: medium, spec: "" }
+  team-qa: { category: team, priority: medium, spec: "" }
