@@ -1,0 +1,8 @@
+{
+  "name": "studio",
+  "version": "0.1.1",
+  "description": "Discipline-collapsed game-development Claude Code plugin. Ships 6 discipline agents (programming, design, art, audio, qa, production), 5 UE5 engine specialists, path-scoped rules for game-dev directories, knowledge files (Angelscript, Blueprint), and 70+ workflow skills (/start, /design-system, /create-epics, /dev-story, /gate-check, etc.). Composes with prometheus marketplace.",
+  "author": "JCSopko",
+  "homepage": "https://github.com/JCSopko/studio",
+  "license": "MIT"
+}

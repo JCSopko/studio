@@ -1,0 +1,13 @@
+{
+  "name": "studio-marketplace",
+  "description": "Local Claude Code plugin marketplace for the Studio template — discipline-collapsed game-development agent architecture (6 disciplines + UE5 specialists + path-scoped rules + game-dev knowledge files + workflow skills). Companion to Prometheus marketplace; the two compose cleanly in projects that load both.",
+  "plugins": [
+    {
+      "name": "studio",
+      "source": {
+        "source": "relative",
+        "path": "./claude-plugin"
+      }
+    }
+  ]
+}
