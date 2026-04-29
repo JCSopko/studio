@@ -9,16 +9,20 @@ All shader files in `assets/shaders/` must follow these standards to maintain
 visual quality, performance, and cross-platform compatibility.
 
 ## Naming Conventions
-- File naming: `[type]_[category]_[name].[ext]`
-  - `spatial_env_water.gdshader` (Godot)
-  - `SG_Env_Water` (Unity Shader Graph)
-  - `M_Env_Water` (Unreal Material)
-- Use descriptive names that indicate the material purpose
-- Prefix with shader type: `spatial_`, `canvas_`, `particles_`, `post_`
+
+UE5 conventions:
+
+- `M_<Category>_<Name>` for materials (e.g., `M_Env_Water`)
+- `MI_<Category>_<Name>` for material instances (e.g., `MI_Env_Water_Calm`)
+- `MF_<Category>_<Name>` for material functions (e.g., `MF_Env_Caustics`)
+- `NS_<Category>_<Name>` for Niagara systems (VFX)
+- For custom HLSL shaders shipped via plugin or `.usf`: `<Category>_<Name>.usf`
+
+Use descriptive names that indicate the material's purpose; the category prefix groups related shaders in the content browser.
 
 ## Code Quality
-- All uniforms/parameters must have descriptive names and appropriate hints
-- Group related parameters (Godot: `group_uniforms`, Unity: `[Header]`, Unreal: Category)
+- All material parameters must have descriptive names and appropriate parameter info (Display Name, Description, Group)
+- Group related parameters via the `Group` field in parameter metadata (e.g., "Surface", "Lighting", "Animation")
 - Comment non-obvious calculations (especially math-heavy sections)
 - No magic numbers — use named constants or documented uniform values
 - Include authorship and purpose comment at the top of each shader file
@@ -33,9 +37,9 @@ visual quality, performance, and cross-platform compatibility.
 
 ## Cross-Platform
 - Test shaders on minimum spec target hardware
-- Provide fallback/simplified versions for lower quality tiers
-- Document which render pipeline the shader targets (Forward/Deferred, URP/HDRP, Forward+/Mobile/Compatibility)
-- Do not mix shaders from different render pipelines in the same directory
+- Provide quality-tier variants where the platform target spans (e.g., Mobile / Console / High-End PC)
+- Document the rendering path the shader targets (Forward / Deferred Shading / Mobile Forward) — UE5 renderer choice affects which features are usable
+- Do not mix shaders authored for different rendering paths in the same directory without explicit subdirectory naming
 
 ## Variant Management
 - Minimize shader variants — each variant is a separate compiled shader

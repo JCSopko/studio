@@ -14,29 +14,46 @@ paths:
 - Mock external dependencies — tests should be fast and deterministic
 - Every bug fix must have a regression test that would have caught the original bug
 
-## Examples
+## Examples (UE5 Automation Spec / Angelscript)
 
 **Correct** (proper naming + Arrange/Act/Assert):
 
-```gdscript
-func test_health_system_take_damage_reduces_health() -> void:
-    # Arrange
-    var health := HealthComponent.new()
-    health.max_health = 100
-    health.current_health = 100
+```cpp
+// UE5 Automation Spec example — test_health_system_take_damage_reduces_health
+BEGIN_DEFINE_SPEC(FHealthSystemSpec,
+    "Studio.HealthSystem.TakeDamage.ReducesHealth",
+    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+END_DEFINE_SPEC(FHealthSystemSpec)
 
-    # Act
-    health.take_damage(25)
+void FHealthSystemSpec::Define()
+{
+    Describe("HealthSystem", [this]() {
+        It("reduces health when TakeDamage is called", [this]() {
+            // Arrange
+            UHealthComponent* Health = NewObject<UHealthComponent>();
+            Health->MaxHealth = 100;
+            Health->CurrentHealth = 100;
 
-    # Assert
-    assert_eq(health.current_health, 75)
+            // Act
+            Health->TakeDamage(25);
+
+            // Assert
+            TestEqual("CurrentHealth after 25 damage", Health->CurrentHealth, 75);
+        });
+    });
+}
 ```
 
 **Incorrect**:
 
-```gdscript
-func test1() -> void:  # VIOLATION: no descriptive name
-    var h := HealthComponent.new()
-    h.take_damage(25)  # VIOLATION: no arrange step, no clear assert
-    assert_true(h.current_health < 100)  # VIOLATION: imprecise assertion
+```cpp
+// VIOLATION: no descriptive name; no Arrange/Act split; imprecise assertion
+void TestSomething()
+{
+    UHealthComponent* H = NewObject<UHealthComponent>();
+    H->TakeDamage(25);
+    check(H->CurrentHealth < 100);  // VIOLATION: imprecise — passes for any value < 100
+}
 ```
+
+The naming pattern is engine-agnostic; the framework varies (UE Automation Spec / NUnit / GdUnit4 / pytest). The Arrange/Act/Assert structure and the regression-test-for-every-bug rule apply universally.

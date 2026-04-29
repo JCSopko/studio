@@ -15,23 +15,31 @@ paths:
 - All engine systems must support graceful degradation
 - Before writing engine API code, consult `docs/engine-reference/` for the current engine version and verify APIs against the reference docs
 
-## Examples
+## Examples (Angelscript / UE5)
 
-**Correct** (zero-alloc hot path):
+**Correct** (zero-alloc hot path — pre-allocated container reused each tick):
 
-```gdscript
-# Pre-allocated array reused each frame
-var _nearby_cache: Array[Node3D] = []
+```as
+// Pre-allocated cache reused per tick
+private TArray<AActor> NearbyCache;
 
-func _physics_process(delta: float) -> void:
-    _nearby_cache.clear()  # Reuse, don't reallocate
-    _spatial_grid.query_radius(position, radius, _nearby_cache)
+UFUNCTION(BlueprintOverride)
+void Tick(float DeltaSeconds)
+{
+    NearbyCache.Empty(NearbyCache.Max());  // reset count, retain capacity
+    SpatialGrid.QueryRadius(GetActorLocation(), QueryRadius, NearbyCache);
+}
 ```
 
-**Incorrect** (allocating in hot path):
+**Incorrect** (allocating per tick):
 
-```gdscript
-func _physics_process(delta: float) -> void:
-    var nearby: Array[Node3D] = []  # VIOLATION: allocates every frame
-    nearby = get_tree().get_nodes_in_group("enemies")  # VIOLATION: tree query every frame
+```as
+UFUNCTION(BlueprintOverride)
+void Tick(float DeltaSeconds)
+{
+    TArray<AActor> Nearby;  // VIOLATION: allocates every tick
+    UGameplayStatics::GetAllActorsOfClass(this, AEnemy::StaticClass(), Nearby);  // VIOLATION: world enumeration every tick
+}
 ```
+
+The principle is engine-agnostic: pre-allocate, pool, reuse. Examples shown in Angelscript; equivalent C++ patterns apply identically with `TArray.Reset()` (count-only reset) over `TArray.Empty()` (allocation-shrinking).
