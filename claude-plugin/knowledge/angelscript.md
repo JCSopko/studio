@@ -345,6 +345,56 @@ class ACombatActor : AActor
 TargetActor.OnDeath.AddUFunction(this, n"HandleDeath");
 ```
 
+## Function library namespaces (UClass → stripped)
+
+`UBlueprintFunctionLibrary` subclasses are exposed in AS under a **stripped class name**. The leading `U` is dropped, and a configured suffix list strips trailing tokens. The defaults are at `Engine/Plugins/Angelscript/Source/AngelscriptCode/Public/AngelscriptSettings.h` lines 120–135:
+
+```cpp
+BlueprintLibraryNamespacePrefixesToStrip = { "UKismet", "UBlueprint" };
+BlueprintLibraryNamespaceSuffixesToStrip = {
+    "Statics", "Library", "BlueprintLibrary",
+    "BlueprintFunctionLibrary", "FunctionLibrary"
+};
+```
+
+Strip is sorted by length (longest match wins). Common results:
+
+| C++ class | AS namespace | Example call |
+|---|---|---|
+| `UGameplayStatics` | `Gameplay::` | `Gameplay::DoesSaveGameExist("Default", 0)` |
+| `UKismetMathLibrary` | `Math::` | `Math::Clamp(x, 0.0, 1.0)` |
+| `UKismetSystemLibrary` | `System::` | `System::SetTimer(this, n"Tick", 1.0, true)` |
+| `UGameplayTagsManager` | `Gameplay::` (note: collision — check) | (rare; usually accessed via gameplay tags directly) |
+
+**Calling `UGameplayStatics::*Foo` directly from AS will NOT resolve** — AS sees the symbol as ambiguous or missing and produces misleading "no matching signatures" errors. Always use the stripped namespace.
+
+### Save-game functions (canonical AS forms)
+
+```as
+Gameplay::DoesSaveGameExist("Default", 0)              // bool
+Gameplay::DeleteGameInSlot("Default", 0)               // bool
+Gameplay::SaveGameToSlot(SaveObj, "Default", 0)        // bool
+Gameplay::LoadGameFromSlot("Default", 0)               // returns USaveGame*
+```
+
+String literals autobind to `FString`; `0` autobinds to `int32`. The "(const FString, const int)" / "(FString, int&)" error variations seen when calling these via the wrong namespace are AS picking up nearest-name candidates from elsewhere — not signature-arity issues. Once the namespace is correct, the literals match.
+
+### WorldContext auto-fill
+
+UFUNCTIONs marked `meta = (WorldContext = "WorldContextObject")` get the world-context parameter auto-filled by AS. The auto-fill source is `FAngelscriptManager::CurrentWorldContext` (see `Bind_AActor.cpp:226`, `Bind_Logging.cpp:176`). Drop the world-context arg in AS:
+
+```as
+AGameModeBase GameMode = Gameplay::GetGameMode();      // canonical — no args
+// fallback if AS rejects no-arg form for some reason:
+AGameModeBase GameMode = Gameplay::GetGameMode(this);
+```
+
+`UKismetSystemLibrary::PrintString(WorldContextObject, ...)` similarly becomes `System::PrintString(...)` with the context auto-filled.
+
+### Origin
+
+This rule was diagnosed live during 2026-04-30 Cozy AS Day-2 work. Five different argument patterns (`("Default", 0)`, `("Default", int32(0))`, local vars, member fields, `private const`) all failed against `UGameplayStatics::*` — symptom was the `(const FString, const int)` mismatch error. Root cause was the wrong class qualifier; `Gameplay::*` resolved cleanly. Encoded here so future AS work doesn't rediscover.
+
 ## Binding rules
 
 ```as
