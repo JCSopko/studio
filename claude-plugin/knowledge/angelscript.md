@@ -269,9 +269,26 @@ class UMyWorldSubsystem : UScriptWorldSubsystem
 
 > **Misleading-comment warning.** Some legacy AS code carries an inline comment claiming a "transparent substitution" from `UGameInstanceSubsystem` to the script wrapper handled by the preprocessor. **There is no such substitution** — the preprocessor at `Engine/Plugins/Angelscript/Source/AngelscriptCode/Private/Preprocessor/AngelscriptPreprocessor.cpp:1003-1014` only auto-generates the parameterless `Get()` accessor for subsystem subclasses. Class inheritance must be the wrapper explicitly. Verify against the canonical Hazelight docs before trusting an inline comment that asserts a non-obvious engine behavior.
 
-### Auto-generated `::Get()`
+### Auto-generated `::Get()` — parameterless for engine/game-instance/world
 
-> The AS binding layer **auto-generates** `::Get(WorldContext)` for subsystem classes. **Do not declare it yourself** — AS rejects user-declared static member functions.
+> The AS binding layer **auto-generates** `::Get(...)` for subsystem classes. **Do not declare it yourself** — AS rejects user-declared static member functions. The signature depends on subsystem kind (verified against `Engine/Plugins/Angelscript/Source/AngelscriptCode/Private/Binds/Bind_Subsystems.cpp:55-122`):
+
+| Subsystem kind | Auto-generated `Get` signature | Caller |
+|---|---|---|
+| `UScriptEngineSubsystem` | `Get()` — no args | `UMyEngineSub::Get()` |
+| `UScriptGameInstanceSubsystem` | `Get()` — no args (world context implicit via `FAngelscriptManager::CurrentWorldContext`) | `UMyGameInstanceSub::Get()` |
+| `UScriptWorldSubsystem` | `Get()` — no args (world context implicit) | `UMyWorldSub::Get()` |
+| `UScriptLocalPlayerSubsystem` | `Get(ULocalPlayer)` AND `Get(APlayerController)` overloads | `UMyPlayerSub::Get(LocalPlayer)` |
+
+> **CRITICAL gotcha.** For game-instance / world / engine subsystems the accessor is **PARAMETERLESS**. Calling `UEventBus::Get(this)` from an Actor or Subsystem fails to compile:
+>
+> ```
+> No matching signatures to 'UEventBus::Get(ABackyardGameMode)'
+>   Calling function:
+>   UEventBus Get()
+> ```
+>
+> The compiler hint "`UEventBus Get()`" tells you the only available signature. Drop the arg.
 
 ```as
 // ✅ RIGHT — UScriptGameInstanceSubsystem parent, no Get() declaration, param-less Initialize
@@ -287,13 +304,12 @@ class UEventBus : UScriptGameInstanceSubsystem
     void Subscribe(FName EventType, FCozyEventDelegate Callback) { /* ... */ }
 }
 
-// Caller-side
-UEventBus Bus = UEventBus::Get(this);  // auto-generated accessor
-```
+// Caller-side — game-instance / world / engine: parameterless
+UEventBus Bus = UEventBus::Get();   // ← no args
 
-For player subsystems: `UMyPlayerSubsystem::Get(RelevantPlayer)`.
-For world subsystems: `UMyWorldSubsystem::Get(WorldContextObject)`.
-For game-instance subsystems: pass any UObject reference.
+// LocalPlayer subsystems are the exception — they take a ULocalPlayer or APlayerController
+UMyPlayerSub PlayerSub = UMyPlayerSub::Get(PlayerController);
+```
 
 Subsystem types and their lifetimes:
 - `UScriptEngineSubsystem` — engine lifetime; survives map travel and PIE
