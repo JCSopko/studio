@@ -172,6 +172,60 @@ Signs that BP is the right home:
 4. Performance is non-critical and not in tick.
 5. Refactoring it to C++/AS would require duplicating UE-side machinery (lighting, rendering, anim) that BP wraps cleanly.
 
+## Asset operations via editor automation — API tier matters
+
+When manipulating BP assets (rename, save, copy, delete) from Python or Monolith MCP under unusual conditions — RF_Transient package corruption, mid-cook state, asset locked open by another tool — the API **tier** chosen determines whether the operation succeeds.
+
+**Two API tiers:**
+
+| Tier | Surface | Behavior |
+|---|---|---|
+| **High-level (disk-load-coupled)** | `unreal.EditorAssetLibrary.{rename,load,delete,save}_asset` | Convenience wrapper. Internally calls `LoadAsset(path)` first to get a stable handle. Fails when disk bytes are unloadable for any reason — RF_Transient corruption, locked file, partial write. Returns False with `LoadAsset failed: '...' is not a valid asset` log. |
+| **Low-level (in-memory)** | `AssetRegistry.get_asset_by_object_path(path).get_asset()` → `IAssetTools.rename_assets([FAssetRenameData(...)])` (or `save_assets`/etc.) | Operates on the live in-memory `UObject` ref the editor already holds, bypassing disk-load. Survives RF_Transient and similar disk-bytes-corrupt scenarios as long as the asset is loaded in editor memory. |
+
+**Decision rule:**
+
+1. **Default to `EditorAssetLibrary`** — clean, readable, sufficient for normal automation.
+2. **Drop to `AssetRegistry → IAssetTools` when** an `EditorAssetLibrary` call returns False with a "could not find" / "not a valid asset" / `LoadAsset failed` shape AND you know the asset IS loaded in the running editor (visible in Content Browser, opened in BP editor, etc.).
+
+**Recovery shape (Python via `editor.run_python` or `remote_execution.py`):**
+
+```python
+import unreal
+
+# When EditorAssetLibrary.rename_asset returned False on a corrupted-on-disk BP
+# that's still loaded in editor memory:
+
+ar = unreal.AssetRegistryHelpers.get_asset_registry()
+asset_data = ar.get_asset_by_object_path("/Game/Blueprints/Foo/BP_Example")
+asset_obj = asset_data.get_asset()  # live in-memory UObject ref
+
+asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
+rename_data = unreal.AssetRenameData(
+    asset=asset_obj,
+    new_package_path="/Game/Blueprints/Foo",
+    new_name="BP_Example_Fix",
+)
+ok = asset_tools.rename_assets([rename_data])  # operates in-memory; serializes clean bytes on save
+```
+
+Save semantics on the in-memory ref:
+- `IAssetTools.rename_assets` triggers a fresh `UPackage` at the destination, with serialization writing clean bytes derived from the in-memory object — disk corruption at the source path is bypassed entirely.
+- `unreal.EditorAssetLibrary.save_loaded_asset(asset_obj)` works fine on the renamed in-memory ref (it's loaded; no disk re-read needed).
+
+**Why `EditorAssetLibrary` was designed disk-coupled:**
+
+`EditorAssetLibrary` is meant as a friendly wrapper for editor automation — it eagerly loads from disk to give callers a stable handle without requiring registry knowledge. That tradeoff (load-from-disk for ergonomics) becomes the failure mode for corruption-recovery scenarios. The asset registry, by contrast, is the editor's authoritative in-memory index of all loaded + discovered assets — it points at live `UObject`s regardless of whether their disk bytes are intact.
+
+**When this matters:**
+
+- Recovering from RF_Transient package leaks (e.g., mid-cook state, BP factory bugs that flag transient on intended-persistent packages).
+- Renaming or saving assets while another process holds a file handle on the source path.
+- Cleaning up after a partial-write incident where some package bytes are corrupt but the editor's in-memory state is fine.
+- Any automation flow where the high-level call returns False with a load-shape error but you know the asset is alive in the editor.
+
+**Companion lesson:** capability inventory is separate from registration state. If a Monolith MCP action surface looks blocked (`tools_registered: 0` mid-`live_compile`), source code may already implement the operation — confirm the tool surface from the running process's `/health` endpoint or source grep before declaring the operation impossible. The registry-vs-EditorAssetLibrary distinction is one specific instance of this broader pattern.
+
 ## Authoritative external references
 
 - Epic UE5 official Blueprint documentation.
