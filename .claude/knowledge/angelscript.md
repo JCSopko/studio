@@ -2,8 +2,8 @@
 name: angelscript
 description: "Reference knowledge for the Hazelight Angelscript fork of UE5. Idioms, declarations, AS↔UE bindings, hot-reload behavior, common pitfalls — corrected against canonical Hazelight docs + Phase B prototype findings."
 type: knowledge
-version-pinned-to: "Hazelight angelscript-ue4 main as of 2026-04-29 (UE5_AS source-built)"
-last-reviewed: 2026-04-29
+version-pinned-to: "Hazelight angelscript-ue4 main as of 2026-04-30 (UE5_AS source-built)"
+last-reviewed: 2026-04-30
 last-reviewer: iji
 canonical-sources:
   - "https://angelscript.hazelight.se/ — definitive UE-AS reference"
@@ -46,13 +46,14 @@ The most common confident-but-wrong patterns. **Check every AS code snippet agai
 | Call `Super::Method()` in BlueprintOverride | **AS does NOT provide `Super` namespace.** Override the body; parent invocation is implicit |
 | Use `FMath::Clamp` | Use `Math::Clamp` — Hazelight renames `FMath::*` → `Math::*` |
 | Use `UWorld.SpawnActor(Class::StaticClass(), ...)` | Use global `SpawnActor(Class, Loc, Rot)` — class as value, not StaticClass() |
+| Subclass `UGameInstanceSubsystem` (bare engine class) | Subclass `UScriptGameInstanceSubsystem` — `BlueprintOverride` on `Initialize`/`Deinitialize` requires the script wrapper, not the bare engine class |
 
 ## File and class structure
 
 - One primary class per `.as` file. File name matches the primary class name without the type prefix: `EventBus.as` → `class UEventBus`.
 - Files live under `<Project>/Script/...`. Subfolder convention mirrors namespace intent (`Script/Subsystems/`, `Script/Components/`, `Script/Actors/`, `Script/Data/`).
 - Classes use UE prefixes: `U` for UObject-derived, `A` for AActor-derived, `F` for plain structs, `E` for enums, `I` for interfaces.
-- Classes declare inheritance with `:`: `class UEventBus : UGameInstanceSubsystem`.
+- Classes declare inheritance with `:`: `class UEventBus : UScriptGameInstanceSubsystem`. (For subsystems, use the `UScript*Subsystem` script wrapper — see §Subsystems below for the rule and rationale.)
 
 ## Type system essentials
 
@@ -229,16 +230,55 @@ ALeafPile P = SpawnActor(ALeafPile, Loc, Rot,
 P.Destroy();
 ```
 
-## Subsystems (auto-generated `::Get()`)
+## Subsystems
+
+### AS parent class — use the script wrapper, not the bare engine class
+
+> **Common trap.** AS subsystem classes **must inherit from the `UScript*Subsystem` helper, not the bare engine class** — otherwise `BlueprintOverride` on `Initialize` / `Deinitialize` will fail to bind. The bare `UGameInstanceSubsystem` etc. declare `Initialize` as a plain virtual; the BIE hooks (`BP_Initialize` / `BP_Deinitialize`) live only on the script wrapper. AS resolves `Initialize` → `BP_Initialize` via prefix-strip, so the override method name stays plain.
+
+| Subsystem kind | AS parent class | `::Get(...)` arg |
+|---|---|---|
+| GameInstance | `UScriptGameInstanceSubsystem` | any UObject |
+| World | `UScriptWorldSubsystem` | WorldContextObject |
+| LocalPlayer | `UScriptLocalPlayerSubsystem` | relevant player |
+| Editor | `UScriptEditorSubsystem` | n/a (editor-only) |
+| Engine | `UScriptEngineSubsystem` | n/a (engine lifetime) |
+
+Inheriting from the bare engine class (`UGameInstanceSubsystem` etc.) compiles AS code "syntactically" but every `BlueprintOverride` on `Initialize` / `Deinitialize` produces:
+
+```
+Angelscript: Error: BlueprintOverride method Initialize in class UFoo
+  does not exist in superclass GameInstanceSubsystem, or is not a
+  BlueprintImplementableEvent or BlueprintNativeEvent in C++.
+```
+
+Switch the parent class — keep the override method names — and the error clears.
+
+Canonical pattern (from https://angelscript.hazelight.se/scripting/subsystems/):
+
+```as
+class UMyWorldSubsystem : UScriptWorldSubsystem
+{
+    UFUNCTION(BlueprintOverride)
+    void Initialize()      // param-less; AS resolves to BP_Initialize
+    {
+        Print("MyGame World Subsystem Initialized!");
+    }
+}
+```
+
+> **Misleading-comment warning.** Some legacy AS code carries an inline comment claiming a "transparent substitution" from `UGameInstanceSubsystem` to the script wrapper handled by the preprocessor. **There is no such substitution** — the preprocessor at `Engine/Plugins/Angelscript/Source/AngelscriptCode/Private/Preprocessor/AngelscriptPreprocessor.cpp:1003-1014` only auto-generates the parameterless `Get()` accessor for subsystem subclasses. Class inheritance must be the wrapper explicitly. Verify against the canonical Hazelight docs before trusting an inline comment that asserts a non-obvious engine behavior.
+
+### Auto-generated `::Get()`
 
 > The AS binding layer **auto-generates** `::Get(WorldContext)` for subsystem classes. **Do not declare it yourself** — AS rejects user-declared static member functions.
 
 ```as
-// ✅ RIGHT — no Get() declaration, just implementation
-class UEventBus : UGameInstanceSubsystem
+// ✅ RIGHT — UScriptGameInstanceSubsystem parent, no Get() declaration, param-less Initialize
+class UEventBus : UScriptGameInstanceSubsystem
 {
     UFUNCTION(BlueprintOverride)
-    void Initialize(FSubsystemCollectionBase& Collection) { /* setup */ }
+    void Initialize() { /* setup */ }
 
     UFUNCTION(BlueprintOverride)
     void Deinitialize() { /* teardown */ }
@@ -256,10 +296,15 @@ For world subsystems: `UMyWorldSubsystem::Get(WorldContextObject)`.
 For game-instance subsystems: pass any UObject reference.
 
 Subsystem types and their lifetimes:
-- `UEngineSubsystem` — engine lifetime; survives map travel and PIE
-- `UGameInstanceSubsystem` — game-instance lifetime; one per running app
-- `UWorldSubsystem` — world lifetime; instantiated per loaded world
-- `ULocalPlayerSubsystem` — per local player
+- `UScriptEngineSubsystem` — engine lifetime; survives map travel and PIE
+- `UScriptGameInstanceSubsystem` — game-instance lifetime; one per running app
+- `UScriptWorldSubsystem` — world lifetime; instantiated per loaded world
+- `UScriptLocalPlayerSubsystem` — per local player
+- `UScriptEditorSubsystem` — editor lifetime (editor-only builds)
+
+### Origin
+
+The "must inherit from the script wrapper" rule was diagnosed on 2026-04-30 during Cozy AS Day-2 work. Four AS subsystems (UEventBus, UTimeService, URNGService, USaveGameService) all failed `BlueprintOverride` on `Initialize`/`Deinitialize` because they inherited from the bare engine classes. Switching to `UScriptGameInstanceSubsystem` (with override names unchanged) cleared all 8 errors — `==script reload total == 79.335 ms` with zero residuals. Encoded here so future AS work doesn't rediscover.
 
 ## Structs
 
