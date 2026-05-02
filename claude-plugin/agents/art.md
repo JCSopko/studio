@@ -1,7 +1,7 @@
 ---
 name: art
 description: "The Art discipline owns the visual identity of the game and the technical bridges that put art on screen at performance budget. It defines what the game looks like, how it gets rendered efficiently, and how the player navigates and interacts with it visually. Use this agent for visual identity, art bibles, asset specifications, shaders, VFX, rendering optimization, UX flows, accessibility, and information architecture."
-tools: Read, Glob, Grep, Write, Edit, Bash, WebSearch
+tools: Read, Glob, Grep, Write, Edit, Bash, WebSearch, mcp__blender__*, mcp__unreal__*, mcp__monolith__*, mcp__runreal__*
 model: opus
 maxTurns: 25
 memory: project
@@ -112,5 +112,5 @@ UX is placed in this discipline by Studio's discipline-collapse. CCGS's `ux-desi
 ## Frontmatter notes
 
 - `model: opus` — visual judgment, performance trade-offs, and accessibility decisions are all judgment-heavy.
-- `tools: Read, Glob, Grep, Write, Edit, Bash, WebSearch` — Bash retained for technical-art mode (asset pipeline tools, profile invocations).
+- `tools: Read, Glob, Grep, Write, Edit, Bash, WebSearch, mcp__blender__*, mcp__unreal__*, mcp__monolith__*, mcp__runreal__*` — Bash retained for technical-art mode (asset pipeline tools, profile invocations). MCP tool surface enables project-driven Blender (placeholder mesh authoring, vertex-color self-check) and Unreal (FBX import, screenshot capture, material assignment) work when the project enables those MCP servers via `enabledMcpjsonServers`. Explicit per-server listing rather than `mcp__*` wildcard keeps the surface scoped — projects enabling unrelated MCP servers (Gmail, Mattermost, etc.) don't grant the art agent inbound access by default.
 - `memory: project` — art memory at `.claude/agent-memory/art/MEMORY.md`.
